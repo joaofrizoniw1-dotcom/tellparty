@@ -54,6 +54,7 @@ label.ck input{width:auto}
 a{color:var(--ac);text-decoration:none}
 .hidden{display:none}
 .hidden{display:none!important}
+.cc{display:inline-block;border:1px solid var(--bd);border-radius:99px;padding:2px 9px;font-size:13px;color:var(--mut)}
 #login{min-height:85vh;display:flex;align-items:center;justify-content:center;padding:20px}
 .lcard{width:100%;max-width:380px;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:28px 24px;display:grid;gap:12px}
 .logo{display:block;margin:0 auto;width:120px;height:auto}
@@ -94,6 +95,8 @@ a{color:var(--ac);text-decoration:none}
 
   <section id="v1">
     <div class="dayctl"><button class="g" id="dprev">‹</button><input type="date" id="sd"><button class="g" id="dnext">›</button><button class="g" id="dtoday">Hoje</button></div>
+    <div class="row" style="margin-bottom:10px"><button class="g" id="cpb">Copiar lista</button></div>
+    <div id="cpp" class="card hidden"></div>
     <div class="card add">
       <input id="n" placeholder="Nome">
       <input id="p" placeholder="Telefone" inputmode="tel">
@@ -221,6 +224,23 @@ a{color:var(--ac);text-decoration:none}
     });
   }
 
+  // ---- copiar lista de outro dia
+  var cpOpen=false, cpMsg="";
+  function renderCp(){
+    var el=$("cpp"); if(!cpOpen){el.classList.add("hidden");return}
+    var by={}; S.people.forEach(function(p){(by[p.day]=by[p.day]||[]).push(p)});
+    var days=Object.keys(by).sort().reverse();
+    var h='<div class="row" style="justify-content:space-between"><b>Copiar a lista de qual dia para '+fmtD(sel).slice(0,5)+'?</b><button class="g" data-cpx="1">Fechar</button></div>';
+    if(cpMsg) h+='<div class="sub" style="margin:8px 0 0;color:var(--ok)">'+esc(cpMsg)+'</div>';
+    if(!days.length) h+='<div class="empty">Nenhum dia com contatos ainda.</div>';
+    days.forEach(function(d){
+      var a=d.split("-"), n=by[d].length, wd=new Date(+a[0],+a[1]-1,+a[2]).toLocaleDateString("pt-BR",{weekday:"short"});
+      h+='<div class="row" style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--bd)"><div style="flex:1 1 120px"><b>'+a[2]+'/'+a[1]+'/'+a[0]+'</b> · '+wd+'<div class="sub" style="margin:0">'+n+(n===1?' contato':' contatos')+'</div></div>'+
+        (d!==sel?'<button class="p" data-cpb="'+d+'">Copiar para '+fmtD(sel).slice(0,5)+'</button>':'<span class="badge">dia aberto</span>')+'</div>';
+    });
+    el.innerHTML=h; el.classList.remove("hidden");
+  }
+
   // ---- actions
   function addPerson(){
     var n=$("n").value.trim(), p=$("p").value.trim();
@@ -290,6 +310,12 @@ a{color:var(--ac);text-decoration:none}
   }
 
   // ---- render
+  function callChips(p){
+    if(!p.calls.length) return '';
+    var rev=p.calls.slice().reverse(), sh=rev.slice(0,4);
+    return '<div class="chips" style="margin-top:8px">'+sh.map(function(c){return '<span class="cc">'+fmtD(c.d).slice(0,5)+' às '+esc(c.t)+'</span>'}).join("")+
+      (rev.length>4?'<span class="cc">+'+(rev.length-4)+' anteriores</span>':'')+'</div>';
+  }
   function details(p){
     if(!p.calls.length) return '<div class="det">Nenhuma ligação registrada ainda.</div>';
     var h='<div class="det"><b>'+p.calls.length+' ligaç'+(p.calls.length===1?'ão':'ões')+'</b><ul>';
@@ -313,7 +339,7 @@ a{color:var(--ac);text-decoration:none}
         '<input type="time" id="t_'+p.id+'" value="'+nowT()+'" style="width:110px">'+
         '<button class="p" data-call="'+p.id+'">Liguei</button>'+
         '<button class="g" data-rm="'+p.id+'">'+(pend["p"+p.id]?'Apagar?':'✕')+'</button></div>'+'<label class="ck"><input type="checkbox" data-rec="'+p.id+'"'+(p.rec?' checked':'')+'> Falei com o recomendador (reesquentar contato)</label>'+
-        (open[p.id]?details(p):'')+'</div>';
+        (open[p.id]?details(p):callChips(p))+'</div>';
     });
     $("l1").innerHTML=h;
 
@@ -322,7 +348,7 @@ a{color:var(--ac);text-decoration:none}
     hist.sort(function(a,b){return a.name.localeCompare(b.name)});
     if(!hist.length) h2='<div class="empty">Nenhuma ligação registrada ainda.</div>';
     hist.forEach(function(p){
-      h2+='<div class="card"><div class="row">'+nameBtn(p)+'<span class="badge ok">'+p.calls.length+'× ligações</span></div>'+(open["h"+p.id]?details(p):'')+'</div>';
+      h2+='<div class="card"><div class="row">'+nameBtn(p)+'<span class="badge ok">'+p.calls.length+'× ligações</span></div>'+(open["h"+p.id]?details(p):callChips(p))+'</div>';
     });
     $("l2").innerHTML=h2;
 
@@ -367,6 +393,7 @@ a{color:var(--ac);text-decoration:none}
         '<div class="row" style="margin-top:10px"><input type="time" data-at="'+adia+'" style="width:130px"><button class="p" data-addt="'+adia+'">Adicionar</button></div></div>';
     } else h5+='<div class="empty">Toque em um dia para ver e incluir horários.</div>';
     $("l5").innerHTML=h5;
+    renderCp();
   }
 
   document.addEventListener("click",function(e){
@@ -393,6 +420,21 @@ a{color:var(--ac);text-decoration:none}
   $("dprev").onclick=function(){sel=shift(sel,-1);render()};
   $("dnext").onclick=function(){sel=shift(sel,1);render()};
   $("dtoday").onclick=function(){sel=dayStr();render()};
+  $("cpb").onclick=function(){cpOpen=!cpOpen;cpMsg="";render()};
+  document.addEventListener("click",function(e){
+    var t=e.target,k;
+    if(!t.getAttribute) return;
+    if(t.getAttribute("data-cpx")){cpOpen=false;render();return}
+    if(k=t.getAttribute("data-cpb")){
+      var n=0;
+      S.people.filter(function(p){return p.day===k}).forEach(function(p){
+        var dup=S.people.some(function(q){return q.day===sel&&q.name===p.name&&q.phone===p.phone});
+        if(!dup){S.people.push({id:Date.now().toString(36)+n+Math.random().toString(36).slice(2,5),name:p.name,phone:p.phone,day:sel,calls:[]});n++}
+      });
+      cpMsg=n?n+(n===1?" contato copiado":" contatos copiados")+" para "+fmtD(sel).slice(0,5)+".":"Esses contatos já estão neste dia.";
+      save();render();
+    }
+  });
   $("mprev").onclick=function(){mon=new Date(mon.getFullYear(),mon.getMonth()-1,1);render()};
   $("mnext").onclick=function(){mon=new Date(mon.getFullYear(),mon.getMonth()+1,1);render()};
   $("mpick").onchange=function(){if(this.value){var a=this.value.split("-");mon=new Date(+a[0],+a[1]-1,1);render()}};
