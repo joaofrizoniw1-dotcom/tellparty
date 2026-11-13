@@ -307,10 +307,18 @@ a{color:var(--ac);text-decoration:none}
   function delPerson(id){
     var go=false;twice("p"+id,function(){go=true});if(!go){render();return}
     var rp=find(id);if(rp&&rp.an)release(rp);
+    if(rp&&rp.notes){var o=S.people.filter(function(q){return q.id!==id&&pkey(q)===pkey(rp)})[0];if(o&&!o.notes)o.notes=rp.notes}
     S.people=S.people.filter(function(x){return x.id!==id});save();render();
   }
 
   // ---- render
+  function pkey(p){var d=(p.phone||"").replace(/\D/g,"");return d?"t"+d:"i"+p.id}
+  function uniq(list){
+    var m={},order=[];
+    list.forEach(function(p){var k=pkey(p);if(!m[k]){m[k]=p;order.push(k)}else if(!m[k].notes&&p.notes)m[k]=p});
+    return order.map(function(k){return m[k]});
+  }
+  function anKeys(){var o={};S.people.forEach(function(p){if(p.an)o[pkey(p)]=1});return o}
   function callChips(p){
     if(!p.calls.length) return '';
     var rev=p.calls.slice().reverse(), sh=rev.slice(0,4);
@@ -354,7 +362,7 @@ a{color:var(--ac);text-decoration:none}
     $("l2").innerHTML=h2;
 
     var q3=$("q3").value.trim().toLowerCase(), h3="";
-    var all=S.people.filter(function(p){return !q3||p.name.toLowerCase().indexOf(q3)>-1});
+    var all=uniq(S.people).filter(function(p){return !q3||p.name.toLowerCase().indexOf(q3)>-1});
     all.sort(function(a,b){return a.name.localeCompare(b.name)});
     if(!all.length) h3='<div class="empty">Nenhuma pessoa cadastrada ainda.</div>';
     all.forEach(function(p){
@@ -364,7 +372,7 @@ a{color:var(--ac);text-decoration:none}
     $("l3").innerHTML=h3;
 
     var opts="";
-    S.people.filter(function(p){return !p.an}).sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(p){opts+='<option value="'+p.id+'">'+esc(p.name)+'</option>'});
+    uniq(S.people.filter(function(p){return !anKeys()[pkey(p)]})).sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(p){opts+='<option value="'+p.id+'">'+esc(p.name)+'</option>'});
     $("asel").innerHTML=opts||'<option value="">Nenhuma pessoa disponível</option>';
     var an=S.people.filter(function(p){return p.an}), h4="";
     an.sort(function(a,b){return (a.an.dt||"9")<(b.an.dt||"9")?-1:1});
